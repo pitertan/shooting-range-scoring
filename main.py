@@ -9,7 +9,7 @@ CENTER_X, CENTER_Y = 0, 0
 RADIUS_SCORES = []
 SCORES = [10, 9, 8, 7, 6, 5, 4, 3, 2, 1]
 template_image = None
-captured_frame = None  # Frame terakhir yang di-capture
+selected_image = None  # Gambar yang dipilih untuk diproses
 
 def load_template():
     global CENTER_X, CENTER_Y, RADIUS_SCORES, template_image
@@ -28,129 +28,108 @@ def load_template():
     print(f"Center: ({CENTER_X}, {CENTER_Y})")
     print(f"Radius Scores: {RADIUS_SCORES}")
 
-def preview_and_process():
-    """Show real-time preview and process captured frame in the same window."""
-    global captured_frame, CENTER_X, CENTER_Y
+def load_image():
+    """Load image manually and process it."""
+    global captured_frame, template_image, CENTER_X, CENTER_Y
 
-    cap = cv2.VideoCapture(0)
-    process_mode = False  # Flag to toggle between preview and processing
+    image_path = filedialog.askopenfilename(
+        title="Select Image to Process",
+        filetypes=[("Image Files", "*.jpg;*.png;*.jpeg")]
+    )
+    if not image_path:
+        print("No image selected.")
+        return
 
-    while True:
-        if not process_mode:
-            # Read frame only if in preview mode
-            ret, frame = cap.read()
-            if not ret:
-                print("Failed to capture frame.")
-                break
-            captured_frame = frame.copy()  # Save the current frame for processing
+    # Load the image
+    uploaded_image = cv2.imread(image_path)
+    if uploaded_image is None:
+        print("Failed to load image.")
+        return
 
-        # Get frame dimensions
-        height, width, _ = captured_frame.shape
-        CENTER_X, CENTER_Y = width // 2, height // 2
+    # Resize uploaded image to match the template size
+    if template_image is not None:
+        template_height, template_width = template_image.shape[:2]
+        uploaded_image = cv2.resize(uploaded_image, (template_width, template_height))
+        print(f"Uploaded image resized to match template: {template_width}x{template_height}")
 
-        if process_mode:
-            # Process the captured frame
-            gray_frame = cv2.cvtColor(captured_frame, cv2.COLOR_BGR2GRAY)
+    captured_frame = uploaded_image  # Store for processing
 
-            # Enhance contrast
-            clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-            gray_frame = clahe.apply(gray_frame)
+    # Update center and display image
+    CENTER_X, CENTER_Y = template_width // 2, template_height // 2
+    process_image(captured_frame)
 
-            # Apply median blur to reduce noise
-            gray_frame = cv2.medianBlur(gray_frame, 5)
+def process_image(frame):
+    """Process the given frame to detect shots and calculate scores."""
+    global CENTER_X, CENTER_Y
 
-            # Edge detection with adjusted thresholds
-            blurred_frame = cv2.GaussianBlur(gray_frame, (5, 5), 0)
-            edges = cv2.Canny(blurred_frame, 50, 150)
+    # Convert to grayscale
+    gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-            # Find contours
-            contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    # Enhance contrast
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    gray_frame = clahe.apply(gray_frame)
 
-            result_frame = captured_frame.copy()
-            scores = []
+    # Apply median blur to reduce noise
+    gray_frame = cv2.medianBlur(gray_frame, 5)
 
-            # Draw target center and scoring radii on the frame
-            cv2.circle(result_frame, (CENTER_X, CENTER_Y), 5, (0, 255, 0), -1)
-            cv2.putText(result_frame, "Target", (CENTER_X + 10, CENTER_Y), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+    # Edge detection
+    blurred_frame = cv2.GaussianBlur(gray_frame, (5, 5), 0)
+    edges = cv2.Canny(blurred_frame, 50, 150)
 
-            max_radius = min(width, height) // 2
-            for radius in RADIUS_SCORES:
-                if radius > max_radius:
-                    radius = max_radius
-                cv2.circle(result_frame, (CENTER_X, CENTER_Y), radius, (255, 0, 0), 1)
+    # Find contours
+    contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-            # Process each contour
-            for contour in contours:
-                # Filter based on contour area
-                contour_area = cv2.contourArea(contour)
-                if contour_area < 20 or contour_area > 1000: #(default 20)
-                    continue
+    result_frame = frame.copy()
+    scores = []
 
-                # Filter based on aspect ratio
-                x, y, w, h = cv2.boundingRect(contour)
-                aspect_ratio = float(w) / h
-                if aspect_ratio < 0.5 or aspect_ratio > 1.5: #(default 0,7)
-                    continue
+    # Draw target center and scoring radii on the frame
+    cv2.circle(result_frame, (CENTER_X, CENTER_Y), 5, (0, 255, 0), -1)
+    cv2.putText(result_frame, "Target", (CENTER_X + 10, CENTER_Y), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
 
-                # Filter based on circularity
-                perimeter = cv2.arcLength(contour, True)
-                circularity = 4 * math.pi * contour_area / (perimeter ** 2)
-                if circularity < 0.2: #(default 0,4)
-                    continue
+    max_radius = min(result_frame.shape[1], result_frame.shape[0]) // 2
+    for radius in RADIUS_SCORES:
+        if radius > max_radius:
+            radius = max_radius
+        cv2.circle(result_frame, (CENTER_X, CENTER_Y), radius, (255, 0, 0), 1)
 
-                # Calculate score
-                (x, y), radius = cv2.minEnclosingCircle(contour)
-                x, y = int(x), int(y)
-                score = calculate_score(x, y)
-                scores.append(score)
+    # Process each contour
+    for contour in contours:
+        # Filter based on contour area
+        contour_area = cv2.contourArea(contour)
+        if contour_area < 20 or contour_area > 1000:
+            continue
 
-                # Draw detected dot and score
-                cv2.circle(result_frame, (x, y), 5, (0, 0, 255), -1)
-                cv2.line(result_frame, (CENTER_X, CENTER_Y), (x, y), (0, 255, 255), 2)
-                cv2.putText(result_frame, f"{score}", (x + 10, y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+        # Filter based on aspect ratio
+        x, y, w, h = cv2.boundingRect(contour)
+        aspect_ratio = float(w) / h
+        if aspect_ratio < 0.5 or aspect_ratio > 1.5:
+            continue
 
-            total_score = sum(scores)
-            cv2.putText(result_frame, f"Total Score: {total_score}", (10, result_frame.shape[0] - 20),
-                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+        # Filter based on circularity
+        perimeter = cv2.arcLength(contour, True)
+        circularity = 4 * math.pi * contour_area / (perimeter ** 2)
+        if circularity < 0.2:
+            continue
 
-            # Show the processed frame
-            cv2.imshow("Shooting Range", result_frame)
+        # Calculate score
+        (x, y), radius = cv2.minEnclosingCircle(contour)
+        x, y = int(x), int(y)
+        score = calculate_score(x, y)
+        scores.append(score)
 
-        else:
-            # Preview mode
-            preview_frame = captured_frame.copy()
+        # Draw detected dot and score
+        cv2.circle(result_frame, (x, y), 5, (0, 0, 255), -1)
+        cv2.line(result_frame, (CENTER_X, CENTER_Y), (x, y), (0, 255, 255), 2)
+        cv2.putText(result_frame, f"{score}", (x + 10, y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
 
-            # Draw concentric circles for scoring zones
-            max_radius = min(width, height) // 2
-            for radius in RADIUS_SCORES:
-                if radius > max_radius:
-                    radius = max_radius
-                cv2.circle(preview_frame, (CENTER_X, CENTER_Y), radius, (255, 0, 0), 1)
+    total_score = sum(scores)
+    cv2.putText(result_frame, f"Total Score: {total_score}", (10, result_frame.shape[0] - 20),
+                cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
-            # Draw target center
-            cv2.circle(preview_frame, (CENTER_X, CENTER_Y), 5, (0, 255, 0), -1)
-            cv2.putText(preview_frame, "Press 'C' to capture", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
-            cv2.putText(preview_frame, "Press 'Q' to Quit", (470, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
-            cv2.putText(preview_frame, "Press 'R' to Recapture", (10, 470), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
-
-            # Show the preview frame
-            cv2.imshow("Shooting Range", preview_frame)
-
-        # Wait for key press
-        key = cv2.waitKey(1) & 0xFF
-        if key == ord('c'):
-            print("Frame captured. Processing...")
-            process_mode = True  # Switch to processing mode
-        elif key == ord('r'):
-            print("Returning to preview mode.")
-            process_mode = False  # Return to preview mode
-        elif key == ord('q'):
-            print("Exiting...")
-            break
-
-    cap.release()
+    # Show the result
+    cv2.imshow("Processed Image", result_frame)
+    cv2.waitKey(0)
     cv2.destroyAllWindows()
-
 
 def calculate_distance(x1, y1, x2, y2):
     return math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
@@ -174,9 +153,9 @@ def main_gui():
     load_template_button = Button(root, text="Load Template", command=load_template, width=20, height=2)
     load_template_button.pack(pady=10)
 
-    # Capture Frame Button
-    capture_button = Button(root, text="Start Detection", command=preview_and_process, width=20, height=2)
-    capture_button.pack(pady=10)
+    # Upload Image Button
+    upload_button = Button(root, text="Upload Image", command=load_image, width=20, height=2)
+    upload_button.pack(pady=10)
 
     # Exit Button
     exit_button = Button(root, text="Exit", command=lambda: root.destroy(), width=20, height=2)
@@ -184,6 +163,7 @@ def main_gui():
 
     # Start GUI
     root.mainloop()
+
 
 if __name__ == "__main__":
     main_gui()
