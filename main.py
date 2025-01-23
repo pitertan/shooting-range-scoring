@@ -265,7 +265,8 @@ def main_gui():
     position_right = int(screen_width / 2 - window_width / 2)
     root.geometry(f'{window_width}x{window_height}+{position_right}+{position_top}')
 
-    root.title("Shooting Range Scoring System")
+    root.title("J-Forces")
+    root.iconbitmap("./—Pngtree—eagle logo design_5369991.ico")
 
     # Label for the title
     label = Label(root, text="Shooting Range Scoring System", font=("Helvetica", 16))
