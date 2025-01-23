@@ -65,6 +65,21 @@ def detect_initial_shots():
             break
         captured_frame = frame.copy()
 
+        # Get frame dimensions
+        height, width, _ = captured_frame.shape
+        CENTER_X, CENTER_Y = width // 2, height // 2
+
+        # Draw concentric circles for scoring zones (same as preview_and_process)
+        max_radius = min(width, height) // 2
+        for radius in RADIUS_SCORES:
+            if radius > max_radius:
+                radius = max_radius
+            cv2.circle(captured_frame, (CENTER_X, CENTER_Y), radius, (255, 0, 0), 1)
+
+        # Draw target center (same as preview_and_process)
+        cv2.circle(captured_frame, (CENTER_X, CENTER_Y), 5, (0, 255, 0), -1)
+        cv2.putText(captured_frame, "Target", (CENTER_X + 10, CENTER_Y), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+
         # Display the current frame
         cv2.imshow("Initial Shots Detection", captured_frame)
 
