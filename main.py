@@ -254,6 +254,9 @@ def calculate_score(x, y):
 
 def main_gui():
     root = tk.Tk()
+
+    root.geometry("400x300")  # Lebar 500px dan tinggi 400px
+
     root.title("Shooting Range Scoring System")
 
     # Label for the title
