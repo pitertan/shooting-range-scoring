@@ -8,6 +8,7 @@ from tkinter import Tk, Label, Button, filedialog
 CENTER_X, CENTER_Y = 0, 0
 RADIUS_SCORES = []
 SCORES = [10, 9, 8, 7, 6, 5, 4, 3, 2, 1]
+INITIAL_SHOTS = []  # List untuk menyimpan koordinat tembakan awal
 template_image = None
 captured_frame = None  # Frame terakhir yang di-capture
 
@@ -27,6 +28,83 @@ def load_template():
     print(f"Template loaded: {template_image}")
     print(f"Center: ({CENTER_X}, {CENTER_Y})")
     print(f"Radius Scores: {RADIUS_SCORES}")
+
+def filter_contour(contour):
+    """Apply filtering criteria to a contour and return True if it's valid."""
+    contour_area = cv2.contourArea(contour)
+    if contour_area < 20 or contour_area > 1000:  # Filter based on area
+        return False
+
+    x, y, w, h = cv2.boundingRect(contour)
+    aspect_ratio = float(w) / h
+    if aspect_ratio < 0.5 or aspect_ratio > 1.5:  # Filter based on aspect ratio
+        return False
+
+    perimeter = cv2.arcLength(contour, True)
+    circularity = 4 * math.pi * contour_area / (perimeter ** 2)
+    if circularity < 0.2:  # Filter based on circularity
+        return False
+
+    return True
+
+
+def detect_initial_shots():
+    """Detect initial shots on the target and store their coordinates."""
+    global INITIAL_SHOTS, captured_frame, CENTER_X, CENTER_Y
+
+    cap = cv2.VideoCapture(0)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+
+    print("Detecting initial shots. Press 'C' to capture and save initial state. Press 'Q' to quit.")
+
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            print("Failed to capture frame.")
+            break
+        captured_frame = frame.copy()
+
+        # Display the current frame
+        cv2.imshow("Initial Shots Detection", captured_frame)
+
+        key = cv2.waitKey(1) & 0xFF
+        if key == ord('c'):  # Capture and process
+            print("Capturing initial state...")
+            gray_frame = cv2.cvtColor(captured_frame, cv2.COLOR_BGR2GRAY)
+            gray_frame = cv2.medianBlur(gray_frame, 5)
+            edges = cv2.Canny(gray_frame, 50, 150)
+
+            # Find contours
+            contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+            # Detect and store initial shot coordinates
+            INITIAL_SHOTS.clear()
+            for contour in contours:
+                if not filter_contour(contour):  # Use the same filter function
+                    continue
+
+                (x, y), radius = cv2.minEnclosingCircle(contour)
+                x, y = int(x), int(y)
+                INITIAL_SHOTS.append((x, y))
+                cv2.circle(captured_frame, (x, y), 5, (0, 0, 255), -1)
+            
+            print(f"Initial shots detected and saved: {INITIAL_SHOTS}")
+            cv2.imshow("Initial Shots Detected", captured_frame)
+        elif key == ord('q'):  # Quit
+            print("Exiting initial shot detection.")
+            break
+
+    cap.release()
+    cv2.destroyAllWindows()
+
+def is_new_shot(x, y, tolerance=10):
+    """Check if a detected shot is new (not in initial shots)."""
+    for shot_x, shot_y in INITIAL_SHOTS:
+        if calculate_distance(x, y, shot_x, shot_y) <= tolerance:
+            return False
+    return True
+
 
 def preview_and_process():
     """Show real-time preview and process captured frame in the same window."""
@@ -85,26 +163,16 @@ def preview_and_process():
 
             # Process each contour
             for contour in contours:
-                # Filter based on contour area
-                contour_area = cv2.contourArea(contour)
-                if contour_area < 20 or contour_area > 1000: #(default 20)
+                if not filter_contour(contour):  # Use the same filter function
                     continue
 
-                # Filter based on aspect ratio
-                x, y, w, h = cv2.boundingRect(contour)
-                aspect_ratio = float(w) / h
-                if aspect_ratio < 0.5 or aspect_ratio > 1.5: #(default 0,7)
-                    continue
-
-                # Filter based on circularity
-                perimeter = cv2.arcLength(contour, True)
-                circularity = 4 * math.pi * contour_area / (perimeter ** 2)
-                if circularity < 0.2: #(default 0,4)
-                    continue
-
-                # Calculate score
                 (x, y), radius = cv2.minEnclosingCircle(contour)
                 x, y = int(x), int(y)
+
+                # Check if the shot is new
+                if not is_new_shot(x, y):
+                    continue  # Ignore this shot
+
                 score = calculate_score(x, y)
                 scores.append(score)
 
@@ -180,6 +248,10 @@ def main_gui():
     # Load Template Button
     load_template_button = Button(root, text="Load Template", command=load_template, width=20, height=2)
     load_template_button.pack(pady=10)
+
+    # detect initial shot Button
+    initial_shots_button = Button(root, text="Detect Initial Shots", command=detect_initial_shots, width=20, height=2)
+    initial_shots_button.pack(pady=10)
 
     # Capture Frame Button
     capture_button = Button(root, text="Start Detection", command=preview_and_process, width=20, height=2)
