@@ -255,7 +255,15 @@ def calculate_score(x, y):
 def main_gui():
     root = tk.Tk()
 
-    root.geometry("400x300")  # Lebar 500px dan tinggi 400px
+    # Center the window
+    screen_width = root.winfo_screenwidth()
+    screen_height = root.winfo_screenheight()
+
+    window_width = 400
+    window_height = 300
+    position_top = int(screen_height / 2 - window_height / 2)
+    position_right = int(screen_width / 2 - window_width / 2)
+    root.geometry(f'{window_width}x{window_height}+{position_right}+{position_top}')
 
     root.title("Shooting Range Scoring System")
 
@@ -267,7 +275,7 @@ def main_gui():
     load_template_button = Button(root, text="Load Template", command=load_template, width=20, height=2)
     load_template_button.pack(pady=10)
 
-    # detect initial shot Button
+    # Detect initial shot Button
     initial_shots_button = Button(root, text="Detect Initial Shots", command=detect_initial_shots, width=20, height=2)
     initial_shots_button.pack(pady=10)
 
