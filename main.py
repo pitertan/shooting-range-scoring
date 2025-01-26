@@ -3,6 +3,7 @@ import numpy as np
 import math
 import tkinter as tk
 from tkinter import Tk, Label, Button, filedialog
+from PIL import Image, ImageTk
 
 # Global variables
 CENTER_X, CENTER_Y = 0, 0
@@ -252,6 +253,32 @@ def calculate_score(x, y):
             return SCORES[i]
     return 0
 
+def goodbye_screen():
+    goodbye = tk.Tk()
+
+    # Center the window
+    screen_width = goodbye.winfo_screenwidth()
+    screen_height = goodbye.winfo_screenheight()
+
+    window_width = 400
+    window_height = 200
+    position_top = int(screen_height / 2 - window_height / 2)
+    position_right = int(screen_width / 2 - window_width / 2)
+    goodbye.geometry(f'{window_width}x{window_height}+{position_right}+{position_top}')
+
+    goodbye.title("Full Random Technology")
+    goodbye.iconbitmap("./logo.ico")
+
+    # Label for goodbye message
+    label = Label(goodbye, text="Thank you for using the system!\nGoodbye!", font=("Helvetica", 16))
+    label.place(relx=0.5, rely=0.5, anchor="center")  # Centered vertically and horizontally
+
+    # Set a timer to close the goodbye screen after a few seconds
+    goodbye.after(1500, lambda: goodbye.destroy())  # Close after 3 seconds
+
+    # Start the goodbye screen
+    goodbye.mainloop()
+
 def main_gui():
     root = tk.Tk()
 
@@ -265,8 +292,8 @@ def main_gui():
     position_right = int(screen_width / 2 - window_width / 2)
     root.geometry(f'{window_width}x{window_height}+{position_right}+{position_top}')
 
-    root.title("J-Forces")
-    root.iconbitmap("./—Pngtree—eagle logo design_5369991.ico")
+    root.title("Full Random Technology")
+    root.iconbitmap("./logo.ico")
 
     # Label for the title
     label = Label(root, text="Shooting Range Scoring System", font=("Helvetica", 16))
@@ -285,11 +312,49 @@ def main_gui():
     capture_button.pack(pady=10)
 
     # Exit Button
-    exit_button = Button(root, text="Exit", command=lambda: root.destroy(), width=20, height=2)
+    exit_button = Button(root, text="Exit", command=lambda: [root.destroy(), goodbye_screen()], width=20, height=2)
     exit_button.pack(pady=10)
 
     # Start GUI
     root.mainloop()
 
+def welcome_screen():
+    welcome = tk.Tk()
+
+    # Center the window
+    screen_width = welcome.winfo_screenwidth()
+    screen_height = welcome.winfo_screenheight()
+
+    window_width = 600
+    window_height = 400
+    position_top = int(screen_height / 2 - window_height / 2)
+    position_right = int(screen_width / 2 - window_width / 2)
+    welcome.geometry(f'{window_width}x{window_height}+{position_right}+{position_top}')
+
+    welcome.title("Full Random Technology")
+    welcome.iconbitmap("./logo.ico")
+
+    # Load and display the logo
+    try:
+        logo_image = Image.open("./main-logo.png")  # Replace with your logo file path
+        logo_image = logo_image.resize((200, 200), Image.Resampling.LANCZOS)
+        logo_photo = ImageTk.PhotoImage(logo_image)
+        logo_label = Label(welcome, image=logo_photo)
+        logo_label.image = logo_photo
+        logo_label.pack(pady=20)
+    except Exception as e:
+        print("Error loading logo:", e)
+
+    # Title Label
+    title_label = Label(welcome, text="Welcome to Shooting Range Scoring System", font=("Helvetica", 16))
+    title_label.pack(pady=10)
+
+    # Start Button
+    start_button = Button(welcome, text="Start", command=lambda: [welcome.destroy(), main_gui()], width=20, height=2)
+    start_button.pack(pady=20)
+
+    # Run the welcome screen
+    welcome.mainloop()
+
 if __name__ == "__main__":
-    main_gui()
+    welcome_screen()
