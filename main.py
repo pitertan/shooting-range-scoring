@@ -319,11 +319,11 @@ def goodbye_screen():
     goodbye.geometry(f'{window_width}x{window_height}+{position_right}+{position_top}')
 
     goodbye.title("Full Random Technology")
-    goodbye.iconbitmap("./logo.ico")
+    goodbye.iconbitmap("./images/logo.ico")
 
     # Load background image
     try:
-        bg_image = Image.open("./background.jpg")  # Replace with your background image path
+        bg_image = Image.open("./images/background.jpg")  # Replace with your background image path
         bg_photo = ImageTk.PhotoImage(bg_image)
 
         # Create canvas to hold the background image
@@ -362,11 +362,11 @@ def main_gui():
     root.geometry(f'{window_width}x{window_height}+{position_right}+{position_top}')
 
     root.title("Full Random Technology")
-    root.iconbitmap("./logo.ico")
+    root.iconbitmap("./images/logo.ico")
 
     # Load background image
     try:
-        bg_image = Image.open("./background.jpg")  # Replace with your background image path
+        bg_image = Image.open("./images/background.jpg")  # Replace with your background image path
         bg_photo = ImageTk.PhotoImage(bg_image)
 
         # Create canvas to hold the background image
@@ -422,11 +422,11 @@ def welcome_screen():
     welcome.geometry(f'{window_width}x{window_height}+{position_right}+{position_top}')
 
     welcome.title("Full Random Technology")
-    welcome.iconbitmap("./logo.ico")
+    welcome.iconbitmap("./images/logo.ico")
 
     # Load background image
     try:
-        bg_image = Image.open("./background.jpg")  # Replace with your background image path
+        bg_image = Image.open("./images/background.jpg")  # Replace with your background image path
         bg_image = bg_image.resize((window_width, window_height), Image.Resampling.LANCZOS)
         bg_photo = ImageTk.PhotoImage(bg_image)
 
@@ -444,7 +444,7 @@ def welcome_screen():
 
     # Load and display the logo
     try:
-        logo_image = Image.open("./main-logo.png")  # Replace with your logo file path
+        logo_image = Image.open("./images/main-logo.png")  # Replace with your logo file path
         logo_image = logo_image.resize((200, 200), Image.Resampling.LANCZOS)
         logo_photo = ImageTk.PhotoImage(logo_image)
         logo_label = Label(welcome, image=logo_photo, bg="white")
