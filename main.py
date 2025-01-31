@@ -58,6 +58,14 @@ def detect_initial_shots():
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 
     print("Detecting initial shots. Press 'C' to capture and save initial state. Press 'Q' to quit.")
+    
+    INITIAL_SHOTS.clear()
+
+    # Variables for animated circle radius
+    radius_min = 3
+    radius_max = 15
+    radius_increment = 1
+    current_radius = radius_min
 
     while True:
         ret, frame = cap.read()
@@ -78,8 +86,18 @@ def detect_initial_shots():
             cv2.circle(captured_frame, (CENTER_X, CENTER_Y), radius, (255, 0, 0), 1)
 
         # Draw target center (same as preview_and_process)
-        cv2.circle(captured_frame, (CENTER_X, CENTER_Y), 5, (0, 255, 0), -1)
+        cv2.circle(captured_frame, (CENTER_X, CENTER_Y), 5, (0, 0, 255), -1)
         cv2.putText(captured_frame, "Target", (CENTER_X + 10, CENTER_Y), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+
+        # Draw animated circles around initial shots
+        for (x, y) in INITIAL_SHOTS:
+            cv2.circle(captured_frame, (x, y), 5, (0, 255, 255), -1)  # Lingkaran kuning kecil
+            cv2.circle(captured_frame, (x, y), current_radius, (0, 0, 255), 2)  # Lingkaran merah animasi
+
+        # Update radius for animation
+        current_radius += radius_increment
+        if current_radius >= radius_max or current_radius <= radius_min:
+            radius_increment *= -1
 
         # Display the current frame
         cv2.imshow("Initial Shots Detection", captured_frame)
@@ -103,10 +121,8 @@ def detect_initial_shots():
                 (x, y), radius = cv2.minEnclosingCircle(contour)
                 x, y = int(x), int(y)
                 INITIAL_SHOTS.append((x, y))
-                cv2.circle(captured_frame, (x, y), 5, (0, 0, 255), -1)
-            
+
             print(f"Initial shots detected and saved: {INITIAL_SHOTS}")
-            cv2.imshow("Initial Shots Detected", captured_frame)
         elif key == ord('q'):  # Quit
             print("Exiting initial shot detection.")
             break
