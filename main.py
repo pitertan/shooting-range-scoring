@@ -1,8 +1,7 @@
 import cv2
-import numpy as np
 import math
 import tkinter as tk
-from tkinter import Tk, Label, Button, filedialog, ttk
+from tkinter import Label, Button, filedialog, ttk
 from PIL import Image, ImageTk
 
 # Global variables
