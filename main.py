@@ -46,16 +46,12 @@ def load_image():
         print("Failed to load image.")
         return
 
-    # Resize uploaded image to match the template size
-    if template_image is not None:
-        template_height, template_width = template_image.shape[:2]
-        uploaded_image = cv2.resize(uploaded_image, (template_width, template_height))
-        print(f"Uploaded image resized to match template: {template_width}x{template_height}")
-
     captured_frame = uploaded_image  # Store for processing
 
-    # Update center and display image
-    CENTER_X, CENTER_Y = template_width // 2, template_height // 2
+    # Set center based on fixed frame size (640x480)
+    FRAME_WIDTH, FRAME_HEIGHT = 640, 480
+    CENTER_X, CENTER_Y = FRAME_WIDTH // 2, FRAME_HEIGHT // 2
+    
     process_image(captured_frame)
 
 def process_image(frame):
