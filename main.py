@@ -1,6 +1,7 @@
 import cv2
 import math
 import tkinter as tk
+import os
 from tkinter import Label, Button, filedialog, ttk
 from PIL import Image, ImageTk
 
@@ -11,6 +12,7 @@ SCORES = [10, 9, 8, 7, 6, 5, 4, 3, 2, 1]
 INITIAL_SHOTS = []  # List untuk menyimpan koordinat tembakan awal
 template_image = None
 captured_frame = None  # Frame terakhir yang di-capture
+base_path = "D:/J-forces Project/shooting-range-scoring"
 
 def load_template():
     global CENTER_X, CENTER_Y, RADIUS_SCORES, template_image
@@ -319,11 +321,15 @@ def goodbye_screen():
     goodbye.geometry(f'{window_width}x{window_height}+{position_right}+{position_top}')
 
     goodbye.title("Full Random Technology")
-    goodbye.iconbitmap("./images/logo.ico")
+    # Gunakan path absolut untuk menghindari masalah path relatif
+    icon_path = os.path.abspath(os.path.join(base_path, "images", "logo.ico"))
+    
+    # Panggil iconbitmap dengan path absolut
+    goodbye.iconbitmap(icon_path)
 
     # Load background image
     try:
-        bg_image = Image.open("./images/background.jpg")  # Replace with your background image path
+        bg_image = Image.open(os.path.join(base_path, "images", "background.jpg"))  # Replace with your background image path
         bg_photo = ImageTk.PhotoImage(bg_image)
 
         # Create canvas to hold the background image
@@ -362,11 +368,15 @@ def main_gui():
     root.geometry(f'{window_width}x{window_height}+{position_right}+{position_top}')
 
     root.title("Full Random Technology")
-    root.iconbitmap("./images/logo.ico")
+    # Gunakan path absolut untuk menghindari masalah path relatif
+    icon_path = os.path.abspath(os.path.join(base_path, "images", "logo.ico"))
+    
+    # Panggil iconbitmap dengan path absolut
+    root.iconbitmap(icon_path)
 
     # Load background image
     try:
-        bg_image = Image.open("./images/background.jpg")  # Replace with your background image path
+        bg_image = Image.open(os.path.join(base_path, "images", "background.jpg"))  # Replace with your background image path
         bg_photo = ImageTk.PhotoImage(bg_image)
 
         # Create canvas to hold the background image
@@ -422,11 +432,16 @@ def welcome_screen():
     welcome.geometry(f'{window_width}x{window_height}+{position_right}+{position_top}')
 
     welcome.title("Full Random Technology")
-    welcome.iconbitmap("./images/logo.ico")
+
+    # Gunakan path absolut untuk menghindari masalah path relatif
+    icon_path = os.path.abspath(os.path.join(base_path, "images", "logo.ico"))
+    
+    # Panggil iconbitmap dengan path absolut
+    welcome.iconbitmap(icon_path)
 
     # Load background image
     try:
-        bg_image = Image.open("./images/background.jpg")  # Replace with your background image path
+        bg_image = Image.open(os.path.join(base_path, "images", "background.jpg"))  # Replace with your background image path
         bg_image = bg_image.resize((window_width, window_height), Image.Resampling.LANCZOS)
         bg_photo = ImageTk.PhotoImage(bg_image)
 
@@ -444,7 +459,7 @@ def welcome_screen():
 
     # Load and display the logo
     try:
-        logo_image = Image.open("./images/main-logo.png")  # Replace with your logo file path
+        logo_image = Image.open(os.path.join(base_path, "images", "main-logo.png"))  # Replace with your logo file path
         logo_image = logo_image.resize((200, 200), Image.Resampling.LANCZOS)
         logo_photo = ImageTk.PhotoImage(logo_image)
         logo_label = Label(welcome, image=logo_photo, bg="white")
