@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 import math
 import tkinter as tk
-from tkinter import Tk, Label, Button, filedialog
+from tkinter import Tk, Label, Button, filedialog, ttk
 from PIL import Image, ImageTk
 
 # Global variables
@@ -53,7 +53,7 @@ def detect_initial_shots():
     """Detect initial shots on the target and store their coordinates."""
     global INITIAL_SHOTS, captured_frame, CENTER_X, CENTER_Y
 
-    cap = cv2.VideoCapture(0)
+    cap = cv2.VideoCapture(cam_index)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 
@@ -130,6 +130,42 @@ def detect_initial_shots():
     cap.release()
     cv2.destroyAllWindows()
 
+# Fungsi untuk mendeteksi kamera yang tersedia
+def get_available_cameras():
+    available_cameras = []
+    for i in range(5):  # Coba deteksi hingga 5 kamera
+        cap = cv2.VideoCapture(i, cv2.CAP_MSMF)
+        if cap.isOpened():
+            available_cameras.append(i)
+            cap.release()
+    return available_cameras
+
+# Fungsi untuk memilih kamera
+def select_camera():
+    def set_camera():
+        global cam_index
+        cam_index = int(camera_var.get())
+        root.destroy()
+    
+    root = tk.Tk()
+    root.title("Pilih Kamera")
+    root.geometry("300x150")
+    
+    ttk.Label(root, text="Pilih Kamera:").pack(pady=10)
+    
+    available_cameras = get_available_cameras()
+    if not available_cameras:
+        available_cameras = [0]
+    
+    camera_var = tk.StringVar(value=str(available_cameras[0]))
+    camera_dropdown = ttk.Combobox(root, textvariable=camera_var, values=[str(cam) for cam in available_cameras])
+    camera_dropdown.pack(pady=5)
+    
+    ttk.Button(root, text="Pilih", command=set_camera).pack(pady=10)
+    
+    root.mainloop()
+
+
 def is_new_shot(x, y, tolerance=10):
     """Check if a detected shot is new (not in initial shots)."""
     for shot_x, shot_y in INITIAL_SHOTS:
@@ -142,7 +178,7 @@ def preview_and_process():
     """Show real-time preview and process captured frame in the same window."""
     global captured_frame, CENTER_X, CENTER_Y
 
-    cap = cv2.VideoCapture(0)
+    cap = cv2.VideoCapture(cam_index)
 
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
@@ -239,6 +275,7 @@ def preview_and_process():
             cv2.putText(preview_frame, "Press 'C' to capture", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
             cv2.putText(preview_frame, "Press 'Q' to Quit", (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
             cv2.putText(preview_frame, "Press 'R' to Recapture", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
+            cv2.putText(preview_frame, f"Camera Index: {cam_index}", (10, 120), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2)
 
             # Show the preview frame
             cv2.imshow("Shooting Range", preview_frame)
@@ -285,6 +322,23 @@ def goodbye_screen():
     goodbye.title("Full Random Technology")
     goodbye.iconbitmap("./logo.ico")
 
+    # Load background image
+    try:
+        bg_image = Image.open("./background.jpg")  # Replace with your background image path
+        bg_photo = ImageTk.PhotoImage(bg_image)
+
+        # Create canvas to hold the background image
+        canvas = tk.Canvas(goodbye, width=screen_width, height=screen_height)
+        canvas.place(x=0, y=0)  # Place canvas at the top-left corner of the window
+
+        # Display the background image on canvas
+        canvas.create_image(0, 0, image=bg_photo, anchor="nw")
+
+        # Keep a reference to the image to prevent garbage collection
+        canvas.image = bg_photo
+    except Exception as e:
+        print("Error loading background image:", e)
+
     # Label for goodbye message
     label = Label(goodbye, text="Thank you for using the system!\nGoodbye!", font=("Helvetica", 16))
     label.place(relx=0.5, rely=0.5, anchor="center")  # Centered vertically and horizontally
@@ -303,7 +357,7 @@ def main_gui():
     screen_height = root.winfo_screenheight()
 
     window_width = 400
-    window_height = 300
+    window_height = 380
     position_top = int(screen_height / 2 - window_height / 2)
     position_right = int(screen_width / 2 - window_width / 2)
     root.geometry(f'{window_width}x{window_height}+{position_right}+{position_top}')
@@ -311,12 +365,33 @@ def main_gui():
     root.title("Full Random Technology")
     root.iconbitmap("./logo.ico")
 
+    # Load background image
+    try:
+        bg_image = Image.open("./background.jpg")  # Replace with your background image path
+        bg_photo = ImageTk.PhotoImage(bg_image)
+
+        # Create canvas to hold the background image
+        canvas = tk.Canvas(root, width=screen_width, height=screen_height)
+        canvas.place(x=0, y=0)  # Place canvas at the top-left corner of the window
+
+        # Display the background image on canvas
+        canvas.create_image(0, 0, image=bg_photo, anchor="nw")
+
+        # Keep a reference to the image to prevent garbage collection
+        canvas.image = bg_photo
+    except Exception as e:
+        print("Error loading background image:", e)
+
     # Label for the title
     label = Label(root, text="Shooting Range Scoring System", font=("Helvetica", 16))
     label.pack(pady=10)
 
     # Load Template Button
     load_template_button = Button(root, text="Load Template", command=load_template, width=20, height=2)
+    load_template_button.pack(pady=10)
+
+    # select camera
+    load_template_button = Button(root, text="Select Camera", command=select_camera, width=20, height=2)
     load_template_button.pack(pady=10)
 
     # Detect initial shot Button
@@ -328,7 +403,7 @@ def main_gui():
     capture_button.pack(pady=10)
 
     # Exit Button
-    exit_button = Button(root, text="Exit", command=lambda: [root.destroy(), goodbye_screen()], width=20, height=2)
+    exit_button = Button(root, text="Exit", command=lambda: [root.destroy(), goodbye_screen()], width=20, height=2, bg="#f54242", fg="white")
     exit_button.pack(pady=10)
 
     # Start GUI
@@ -350,24 +425,42 @@ def welcome_screen():
     welcome.title("Full Random Technology")
     welcome.iconbitmap("./logo.ico")
 
+    # Load background image
+    try:
+        bg_image = Image.open("./background.jpg")  # Replace with your background image path
+        bg_image = bg_image.resize((window_width, window_height), Image.Resampling.LANCZOS)
+        bg_photo = ImageTk.PhotoImage(bg_image)
+
+        # Create canvas to hold the background image
+        canvas = tk.Canvas(welcome, width=screen_width, height=screen_height)
+        canvas.place(x=0, y=0)  # Place canvas at the top-left corner of the window
+
+        # Display the background image on canvas
+        canvas.create_image(0, 0, image=bg_photo, anchor="nw")
+
+        # Keep a reference to the image to prevent garbage collection
+        canvas.image = bg_photo
+    except Exception as e:
+        print("Error loading background image:", e)
+
     # Load and display the logo
     try:
         logo_image = Image.open("./main-logo.png")  # Replace with your logo file path
         logo_image = logo_image.resize((200, 200), Image.Resampling.LANCZOS)
         logo_photo = ImageTk.PhotoImage(logo_image)
-        logo_label = Label(welcome, image=logo_photo)
+        logo_label = Label(welcome, image=logo_photo, bg="white")
         logo_label.image = logo_photo
-        logo_label.pack(pady=20)
+        logo_label.place(relx=0.5, rely=0.3, anchor="center")  # Logo positioned near the top
     except Exception as e:
         print("Error loading logo:", e)
 
     # Title Label
-    title_label = Label(welcome, text="Welcome to Shooting Range Scoring System", font=("Helvetica", 16))
-    title_label.pack(pady=10)
+    title_label = Label(welcome, text="Welcome to Shooting Range Scoring System", font=("Helvetica", 16), bg="white")
+    title_label.place(relx=0.5, rely=0.65, anchor="center")  # Positioned below the logo
 
     # Start Button
     start_button = Button(welcome, text="Start", command=lambda: [welcome.destroy(), main_gui()], width=20, height=2)
-    start_button.pack(pady=20)
+    start_button.place(relx=0.5, rely=0.8, anchor="center")  # Positioned below the title label
 
     # Run the welcome screen
     welcome.mainloop()
