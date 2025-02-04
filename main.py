@@ -4,6 +4,7 @@ import tkinter as tk
 import os
 from tkinter import Label, Button, filedialog, ttk
 from PIL import Image, ImageTk
+import numpy as np
 
 # Global variables
 CENTER_X, CENTER_Y = 0, 0
@@ -12,6 +13,7 @@ SCORES = [10, 9, 8, 7, 6, 5, 4, 3, 2, 1]
 INITIAL_SHOTS = []  # List untuk menyimpan koordinat tembakan awal
 template_image = None
 captured_frame = None  # Frame terakhir yang di-capture
+cam_index = 0  # Initialize default camera index
 base_path = "D:/J-forces Project/shooting-range-scoring"
 
 def load_template():
@@ -31,20 +33,33 @@ def load_template():
     print(f"Center: ({CENTER_X}, {CENTER_Y})")
     print(f"Radius Scores: {RADIUS_SCORES}")
 
-def filter_contour(contour):
+def filter_contour(contour, image):
     """Apply filtering criteria to a contour and return True if it's valid."""
     contour_area = cv2.contourArea(contour)
-    if contour_area < 20 or contour_area > 1000:  # Filter based on area
+    if contour_area < 20 or contour_area > 2000:  # Filter based on area, default 1000
         return False
 
     x, y, w, h = cv2.boundingRect(contour)
     aspect_ratio = float(w) / h
-    if aspect_ratio < 0.5 or aspect_ratio > 1.5:  # Filter based on aspect ratio
+    if aspect_ratio < 0.1 or aspect_ratio > 2:  # Filter based on aspect ratio default 0.5 | 1.5
         return False
 
     perimeter = cv2.arcLength(contour, True)
     circularity = 4 * math.pi * contour_area / (perimeter ** 2)
-    if circularity < 0.2:  # Filter based on circularity
+    if circularity < 0.1:  # Filter based on circularity
+        return False
+    
+    # Ambil ROI dalam bounding box
+    roi = image[y:y+h, x:x+w]
+
+    # Konversi ke Grayscale
+    gray_roi = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
+
+    # Hitung rata-rata intensitas warna dalam ROI
+    mean_intensity = np.mean(gray_roi)
+
+    # Filter berdasarkan warna (bekas tembakan harus hitam)
+    if mean_intensity > 60:  # 0 = hitam, 255 = putih (Threshold bisa disesuaikan)
         return False
 
     return True
@@ -52,9 +67,15 @@ def filter_contour(contour):
 
 def detect_initial_shots():
     """Detect initial shots on the target and store their coordinates."""
-    global INITIAL_SHOTS, captured_frame, CENTER_X, CENTER_Y
+    global INITIAL_SHOTS, captured_frame, CENTER_X, CENTER_Y, cam_index
 
+    print(f"Opening camera {cam_index} for initial shot detection")
     cap = cv2.VideoCapture(cam_index)
+    
+    if not cap.isOpened():
+        print(f"Failed to open camera {cam_index}")
+        return
+        
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 
@@ -79,21 +100,21 @@ def detect_initial_shots():
         height, width, _ = captured_frame.shape
         CENTER_X, CENTER_Y = width // 2, height // 2
 
-        # Draw concentric circles for scoring zones (same as preview_and_process)
+        # Draw concentric circles for scoring zones
         max_radius = min(width, height) // 2
         for radius in RADIUS_SCORES:
             if radius > max_radius:
                 radius = max_radius
             cv2.circle(captured_frame, (CENTER_X, CENTER_Y), radius, (255, 0, 0), 1)
 
-        # Draw target center (same as preview_and_process)
+        # Draw target center
         cv2.circle(captured_frame, (CENTER_X, CENTER_Y), 5, (0, 0, 255), -1)
         cv2.putText(captured_frame, "Target", (CENTER_X + 10, CENTER_Y), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
 
         # Draw animated circles around initial shots
         for (x, y) in INITIAL_SHOTS:
-            cv2.circle(captured_frame, (x, y), 5, (0, 255, 255), -1)  # Lingkaran kuning kecil
-            cv2.circle(captured_frame, (x, y), current_radius, (0, 0, 255), 2)  # Lingkaran merah animasi
+            cv2.circle(captured_frame, (x, y), 5, (0, 255, 255), -1) 
+            cv2.circle(captured_frame, (x, y), current_radius, (0, 0, 255), 2)  
 
         # Update radius for animation
         current_radius += radius_increment
@@ -116,7 +137,7 @@ def detect_initial_shots():
             # Detect and store initial shot coordinates
             INITIAL_SHOTS.clear()
             for contour in contours:
-                if not filter_contour(contour):  # Use the same filter function
+                if not filter_contour(contour, captured_frame):
                     continue
 
                 (x, y), radius = cv2.minEnclosingCircle(contour)
@@ -134,37 +155,72 @@ def detect_initial_shots():
 # Fungsi untuk mendeteksi kamera yang tersedia
 def get_available_cameras():
     available_cameras = []
-    for i in range(5):  # Coba deteksi hingga 5 kamera
-        cap = cv2.VideoCapture(i, cv2.CAP_MSMF)
+    for i in range(5):  # Try detecting up to 10 cameras
+        cap = cv2.VideoCapture(i)
         if cap.isOpened():
-            available_cameras.append(i)
+            ret, _ = cap.read()  # Try to read a frame
+            if ret:  # Only add camera if it can actually capture frames
+                available_cameras.append(i)
             cap.release()
-    return available_cameras
+    return available_cameras if available_cameras else [0]  # Return [0] if no cameras found
 
 # Fungsi untuk memilih kamera
 def select_camera():
+    global cam_index
+    
     def set_camera():
         global cam_index
-        cam_index = int(camera_var.get())
-        root.destroy()
+        selected_cam = int(camera_var.get())
+        # Test if the selected camera works
+        cap = cv2.VideoCapture(selected_cam)
+        if cap.isOpened():
+            ret, _ = cap.read()
+            if ret:
+                cam_index = selected_cam
+                print(f"Successfully selected camera {cam_index}")
+            else:
+                print(f"Failed to read from camera {selected_cam}")
+        cap.release()
+        camera_window.destroy()
     
-    root = tk.Tk()
-    root.title("Pilih Kamera")
-    root.geometry("300x150")
-    
-    ttk.Label(root, text="Pilih Kamera:").pack(pady=10)
+    camera_window = tk.Toplevel()
+    camera_window.title("Select Camera")
+    camera_window.geometry("300x150")
     
     available_cameras = get_available_cameras()
-    if not available_cameras:
-        available_cameras = [0]
     
-    camera_var = tk.StringVar(value=str(available_cameras[0]))
-    camera_dropdown = ttk.Combobox(root, textvariable=camera_var, values=[str(cam) for cam in available_cameras])
+    ttk.Label(camera_window, text="Select Camera:").pack(pady=10)
+    
+    camera_var = tk.StringVar(value=str(cam_index))  # Set current camera as default
+    camera_dropdown = ttk.Combobox(camera_window, textvariable=camera_var, 
+                                 values=[str(cam) for cam in available_cameras])
     camera_dropdown.pack(pady=5)
     
-    ttk.Button(root, text="Pilih", command=set_camera).pack(pady=10)
+    # Add a test button
+    def test_camera():
+        try:
+            test_cam = int(camera_var.get())
+            cap = cv2.VideoCapture(test_cam)
+            if cap.isOpened():
+                ret, frame = cap.read()
+                if ret:
+                    cv2.imshow(f"Testing Camera {test_cam}", frame)
+                    cv2.waitKey(2000)  # Show for 2 seconds
+                    cv2.destroyAllWindows()
+                    print(f"Successfully tested camera {test_cam}")
+                else:
+                    print(f"Failed to read from camera {test_cam}")
+            cap.release()
+        except Exception as e:
+            print(f"Error testing camera: {e}")
     
-    root.mainloop()
+    ttk.Button(camera_window, text="Test Camera", command=test_camera).pack(pady=5)
+    ttk.Button(camera_window, text="Select", command=set_camera).pack(pady=5)
+    
+    # Make the camera selection window modal
+    camera_window.transient(camera_window.master)
+    camera_window.grab_set()
+    camera_window.wait_window()
 
 
 def is_new_shot(x, y, tolerance=10):
@@ -177,10 +233,15 @@ def is_new_shot(x, y, tolerance=10):
 
 def preview_and_process():
     """Show real-time preview and process captured frame in the same window."""
-    global captured_frame, CENTER_X, CENTER_Y
+    global captured_frame, CENTER_X, CENTER_Y, cam_index
 
+    print(f"Opening camera {cam_index} for preview and processing")
     cap = cv2.VideoCapture(cam_index)
-
+    
+    if not cap.isOpened():
+        print(f"Failed to open camera {cam_index}")
+        return
+        
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 
@@ -188,12 +249,11 @@ def preview_and_process():
 
     while True:
         if not process_mode:
-            # Read frame only if in preview mode
             ret, frame = cap.read()
             if not ret:
                 print("Failed to capture frame.")
                 break
-            captured_frame = frame.copy()  # Save the current frame for processing
+            captured_frame = frame.copy()
 
         # Get frame dimensions
         height, width, _ = captured_frame.shape
@@ -232,7 +292,7 @@ def preview_and_process():
 
             # Process each contour
             for contour in contours:
-                if not filter_contour(contour):  # Use the same filter function
+                if not filter_contour(contour):
                     continue
 
                 (x, y), radius = cv2.minEnclosingCircle(contour)
@@ -240,7 +300,7 @@ def preview_and_process():
 
                 # Check if the shot is new
                 if not is_new_shot(x, y):
-                    continue  # Ignore this shot
+                    continue
 
                 score = calculate_score(x, y)
                 scores.append(score)
@@ -254,7 +314,6 @@ def preview_and_process():
             cv2.putText(result_frame, f"Total Score: {total_score}", (10, result_frame.shape[0] - 20),
                         cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
-            # Show the processed frame
             cv2.imshow("Shooting Range", result_frame)
 
         else:
@@ -270,25 +329,20 @@ def preview_and_process():
 
             # Draw target center
             cv2.circle(preview_frame, (CENTER_X, CENTER_Y), 5, (0, 255, 0), -1)
-            # cv2.putText(preview_frame, "Press 'C' to capture", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
-            # cv2.putText(preview_frame, "Press 'Q' to Quit", (470, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
-            # cv2.putText(preview_frame, "Press 'R' to Recapture", (10, 470), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
             cv2.putText(preview_frame, "Press 'C' to capture", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
             cv2.putText(preview_frame, "Press 'Q' to Quit", (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
             cv2.putText(preview_frame, "Press 'R' to Recapture", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
             cv2.putText(preview_frame, f"Camera Index: {cam_index}", (10, 120), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2)
 
-            # Show the preview frame
             cv2.imshow("Shooting Range", preview_frame)
 
-        # Wait for key press
         key = cv2.waitKey(1) & 0xFF
         if key == ord('c'):
             print("Frame captured. Processing...")
-            process_mode = True  # Switch to processing mode
+            process_mode = True
         elif key == ord('r'):
             print("Returning to preview mode.")
-            process_mode = False  # Return to preview mode
+            process_mode = False
         elif key == ord('q'):
             print("Exiting...")
             break
