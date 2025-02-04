@@ -1,2 +1,5 @@
 opencv-python
 pillow
+pyinstaller
+
+# build exe command : pyinstaller --onefile --noconsole --add-data "images/*;images" --icon=images/logo.ico --name=Full-Random-SRSS main.py 
