@@ -292,7 +292,7 @@ def preview_and_process():
 
             # Process each contour
             for contour in contours:
-                if not filter_contour(contour):
+                if not filter_contour(contour, captured_frame):
                     continue
 
                 (x, y), radius = cv2.minEnclosingCircle(contour)
